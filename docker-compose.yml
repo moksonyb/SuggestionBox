@@ -1,28 +1,15 @@
 version: '3.8'
 
 services:
-  api:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PORT=3001
-    restart: unless-stopped
-    container_name: suggestionbox-api
-
-  web:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
     ports:
-      - "3000:80"
-    environment:
-      - VITE_API_URL=http://api:3001
-    depends_on:
-      - api
+      - "80:80"
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
-    container_name: suggestionbox-web
+    container_name: suggestionbox-app
