@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,30 @@ import { usePollStore } from '@/stores/pollStore';
 export default function PollPage() {
   const { id } = useParams<{ id: string }>();
   const poll = usePollStore((state) => state.getPoll(id || ''));
+
+  useEffect(() => {
+    if (poll) {
+      // Update document title
+      document.title = `${poll.title} - Suggestion Box`;
+      
+      // Update or create meta tags
+      const updateMetaTag = (property: string, content: string) => {
+        let element = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+        if (!element) {
+          element = document.createElement('meta');
+          element.setAttribute('property', property);
+          document.head.appendChild(element);
+        }
+        element.setAttribute('content', content);
+      };
+
+      updateMetaTag('og:title', poll.title);
+      updateMetaTag('og:description', poll.description || 'Vote on suggestions and share your ideas!');
+      updateMetaTag('og:type', 'website');
+    } else {
+      document.title = 'Poll Not Found - Suggestion Box';
+    }
+  }, [poll]);
 
   if (!poll) {
     return (
