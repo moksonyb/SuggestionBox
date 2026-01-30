@@ -13,6 +13,10 @@ RUN npm install && \
 # Copy source code
 COPY . .
 
+# Build argument for API URL
+ARG VITE_API_URL=http://localhost:3001
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application for production
 ENV NODE_ENV=production
 RUN npm run build

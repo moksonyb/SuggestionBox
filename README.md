@@ -12,6 +12,8 @@ A modern, interactive polling and suggestion application built with React and Ty
 ## Tech Stack
 
 - **Frontend Framework:** React 18 with TypeScript
+- **Backend:** Node.js + Express
+- **Database:** SQLite
 - **Build Tool:** Vite
 - **Styling:** Tailwind CSS
 - **UI Components:** shadcn/ui
@@ -31,19 +33,26 @@ A modern, interactive polling and suggestion application built with React and Ty
 git clone <YOUR_GIT_URL>
 cd SuggestionBox
 
-# Install dependencies
+# Install frontend dependencies
 npm install
 
-# Start the development server
-npm run dev
+# Install backend dependencies
+cd server
+npm install
+cd ..
+
+# Start the development servers (both frontend and backend)
+npm run dev:all
 ```
 
-The app will be available at `http://localhost:8080`
+The frontend will be available at `http://localhost:8080` and the API at `http://localhost:3001`
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
+- `npm run dev` - Start frontend development server only
+- `npm run dev:server` - Start backend API server only
+- `npm run dev:all` - Start both frontend and backend
+- `npm run build` - Build frontend for production
 - `npm run preview` - Preview production build
 - `npm run test` - Run tests
 - `npm run lint` - Lint code

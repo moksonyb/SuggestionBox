@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, Link } from 'react-router-dom';
-import { nanoid } from 'nanoid';
 import { Copy, Check, Plus, Share2, ArrowLeft, Settings, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SuggestionItem } from '@/components/SuggestionItem';
 import { usePollStore } from '@/stores/pollStore';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import type { Poll } from '@/types/poll';
 
@@ -16,16 +16,14 @@ interface PollViewProps {
 }
 
 export function PollView({ poll }: PollViewProps) {
-  const [searchParams] = useSearchParams();
-  const editToken = searchParams.get('token');
-  const isEditable = editToken === poll.editToken;
+  const isEditable = apiClient.hasEditPermission(poll.id);
   
   const [newSuggestion, setNewSuggestion] = useState('');
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState(false);
   
-  const { addSuggestion, voteSuggestion, deleteSuggestion, updateSuggestion } = usePollStore();
+  const { addSuggestion, voteSuggestion, deleteSuggestion, updateSuggestion, updatePoll } = usePollStore();
 
   // Load voted IDs from localStorage
   useEffect(() => {
@@ -35,34 +33,46 @@ export function PollView({ poll }: PollViewProps) {
     }
   }, [poll.id]);
 
-  const handleVote = (suggestionId: string) => {
+  const handleVote = async (suggestionId: string) => {
     if (votedIds.has(suggestionId)) {
       toast.info("You've already voted for this suggestion");
       return;
     }
     
-    voteSuggestion(poll.id, suggestionId);
-    const newVotedIds = new Set(votedIds).add(suggestionId);
-    setVotedIds(newVotedIds);
-    localStorage.setItem(`poll-votes-${poll.id}`, JSON.stringify([...newVotedIds]));
-    toast.success('Vote recorded!');
+    try {
+      await apiClient.voteSuggestion(poll.id, suggestionId);
+      voteSuggestion(poll.id, suggestionId);
+      const newVotedIds = new Set(votedIds).add(suggestionId);
+      setVotedIds(newVotedIds);
+      localStorage.setItem(`poll-votes-${poll.id}`, JSON.stringify([...newVotedIds]));
+      toast.success('Vote recorded!');
+    } catch (error) {
+      console.error('Failed to vote:', error);
+      toast.error('Failed to record vote. Please try again.');
+    }
   };
 
-  const handleAddSuggestion = () => {
+  const handleAddSuggestion = async () => {
     if (!newSuggestion.trim()) {
       toast.error('Please enter a suggestion');
       return;
     }
     
-    addSuggestion(poll.id, {
-      id: nanoid(8),
-      text: newSuggestion.trim(),
-      votes: 0,
-      createdAt: new Date(),
-    });
-    
-    setNewSuggestion('');
-    toast.success('Suggestion added!');
+    try {
+      const suggestion = await apiClient.addSuggestion(poll.id, newSuggestion.trim());
+      addSuggestion(poll.id, {
+        id: suggestion.id,
+        text: suggestion.text,
+        votes: 0,
+        createdAt: new Date(suggestion.created_at),
+      });
+      
+      setNewSuggestion('');
+      toast.success('Suggestion added!');
+    } catch (error) {
+      console.error('Failed to add suggestion:', error);
+      toast.error('Failed to add suggestion. Please try again.');
+    }
   };
 
   const handleCopyLink = async () => {
@@ -204,8 +214,26 @@ export function PollView({ poll }: PollViewProps) {
                       votes={suggestion.votes}
                       totalVotes={poll.totalVotes}
                       onVote={() => handleVote(suggestion.id)}
-                      onDelete={isEditable ? () => deleteSuggestion(poll.id, suggestion.id) : undefined}
-                      onEdit={isEditable ? (text) => updateSuggestion(poll.id, suggestion.id, text) : undefined}
+                      onDelete={isEditable ? async () => {
+                        try {
+                          await apiClient.deleteSuggestion(poll.id, suggestion.id);
+                          deleteSuggestion(poll.id, suggestion.id);
+                          toast.success('Suggestion deleted');
+                        } catch (error) {
+                          console.error('Failed to delete:', error);
+                          toast.error('Failed to delete suggestion');
+                        }
+                      } : undefined}
+                      onEdit={isEditable ? async (text) => {
+                        try {
+                          await apiClient.updateSuggestion(poll.id, suggestion.id, text);
+                          updateSuggestion(poll.id, suggestion.id, text);
+                          toast.success('Suggestion updated');
+                        } catch (error) {
+                          console.error('Failed to update:', error);
+                          toast.error('Failed to update suggestion');
+                        }
+                      } : undefined}
                       isEditable={isEditable}
                       hasVoted={votedIds.has(suggestion.id)}
                     />

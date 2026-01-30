@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { nanoid } from 'nanoid';
 import { Sparkles, Plus, X, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { usePollStore } from '@/stores/pollStore';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
 export function CreatePollForm() {
@@ -41,39 +41,35 @@ export function CreatePollForm() {
       return;
     }
 
-    const validSuggestions = suggestions.filter((s) => s.trim());
-    
     setIsCreating(true);
-    
-    // Simulate a small delay for better UX
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const pollId = nanoid(10);
-    const editToken = nanoid(20);
-    
-    const poll = {
-      id: pollId,
-      title: title.trim(),
-      description: description.trim(),
-      suggestions: validSuggestions.map((text) => ({
-        id: nanoid(8),
-        text: text.trim(),
-        votes: 0,
-        createdAt: new Date(),
-      })),
-      editToken,
-      createdAt: new Date(),
-      totalVotes: 0,
-    };
+    try {
+      // Create poll via API
+      const poll = await apiClient.createPoll(title.trim(), description.trim());
+      
+      // Add initial suggestions if any
+      const validSuggestions = suggestions.filter((s) => s.trim());
+      for (const text of validSuggestions) {
+        await apiClient.addSuggestion(poll.id, text.trim());
+      }
 
-    addPoll(poll);
-    
-    toast.success('Poll created successfully!', {
-      description: 'Redirecting to your poll...',
-    });
-    
-    // Navigate to the poll with edit token
-    navigate(`/poll/${pollId}?token=${editToken}`);
+      // Fetch the complete poll with suggestions
+      const completePoll = await apiClient.getPoll(poll.id);
+      if (completePoll) {
+        addPoll(completePoll as any);
+      }
+      
+      toast.success('Poll created successfully!', {
+        description: 'Redirecting to your poll...',
+      });
+      
+      // Navigate to the poll
+      navigate(`/poll/${poll.id}`);
+    } catch (error) {
+      console.error('Failed to create poll:', error);
+      toast.error('Failed to create poll. Please try again.');
+      setIsCreating(false);
+    }
   };
 
   return (

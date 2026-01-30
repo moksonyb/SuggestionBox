@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,39 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { PollView } from '@/components/PollView';
 import { FloatingShapes } from '@/components/FloatingShapes';
 import { usePollStore } from '@/stores/pollStore';
+import { apiClient } from '@/lib/api';
 
 export default function PollPage() {
   const { id } = useParams<{ id: string }>();
   const poll = usePollStore((state) => state.getPoll(id || ''));
+  const addPoll = usePollStore((state) => state.addPoll);
+  const [loading, setLoading] = useState(!poll);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    const loadPoll = async () => {
+      if (!id) return;
+      
+      // If poll is not in store, fetch from API
+      if (!poll) {
+        try {
+          const fetchedPoll = await apiClient.getPoll(id);
+          if (fetchedPoll) {
+            addPoll(fetchedPoll as any);
+          } else {
+            setNotFound(true);
+          }
+        } catch (error) {
+          console.error('Failed to load poll:', error);
+          setNotFound(true);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPoll();
+  }, [id, poll, addPoll]);
 
   useEffect(() => {
     if (poll) {
@@ -36,7 +65,19 @@ export default function PollPage() {
     }
   }, [poll]);
 
-  if (!poll) {
+  if (loading) {
+    return (
+      <div className="min-h-screen gradient-mesh relative flex items-center justify-center">
+        <FloatingShapes />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading poll...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !poll) {
     return (
       <div className="min-h-screen gradient-mesh relative">
         <FloatingShapes />
