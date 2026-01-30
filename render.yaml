@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: suggestionbox
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
